@@ -16,7 +16,7 @@ COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
 
 COPY . .
-RUN composer dump-autoload --no-dev --optimize \
+RUN composer dump-autoload --no-dev --optimize --no-scripts \
     && mkdir -p storage/framework/{cache,sessions,views} storage/logs database \
     && chown -R www-data:www-data storage bootstrap/cache database
 

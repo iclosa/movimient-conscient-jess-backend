@@ -13,3 +13,4 @@ storage/framework/sessions/*
 storage/framework/views/*
 tests
 .phpunit.result.cache
+bootstrap/cache/*.php

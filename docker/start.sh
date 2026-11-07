@@ -11,6 +11,7 @@ mkdir -p "$(dirname "$DB_FILE")"
 [ -f "$DB_FILE" ] || touch "$DB_FILE"
 chown -R www-data:www-data "$(dirname "$DB_FILE")" storage bootstrap/cache
 
+php artisan package:discover --ansi
 php artisan config:clear
 php artisan migrate --force
 php artisan db:seed --force
