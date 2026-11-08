@@ -2,9 +2,9 @@ FROM php:8.3-fpm-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         nginx supervisor gettext-base git unzip curl \
-        libzip-dev libicu-dev libpng-dev libjpeg-dev libfreetype6-dev libonig-dev \
+        libzip-dev libicu-dev libpng-dev libjpeg-dev libfreetype6-dev libonig-dev libpq-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" pdo_mysql bcmath intl gd zip pcntl opcache \
+    && docker-php-ext-install -j"$(nproc)" pdo_mysql pdo_pgsql bcmath intl gd zip pcntl opcache \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
