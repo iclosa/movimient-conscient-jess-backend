@@ -3,6 +3,7 @@ services:
     name: moviment-conscient-backend
     runtime: docker
     plan: free
+    region: frankfurt
     healthCheckPath: /up
     envVars:
       - key: APP_NAME
@@ -36,9 +37,9 @@ services:
       - key: DB_SSLMODE
         value: require
       - key: SESSION_DRIVER
-        value: database
+        value: file
       - key: CACHE_STORE
-        value: database
+        value: file
       - key: QUEUE_CONNECTION
         value: sync
       - key: ADMIN_EMAIL
