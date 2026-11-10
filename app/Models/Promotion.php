@@ -38,6 +38,6 @@ class Promotion extends Model
 
     public function getImageUrlAttribute(): ?string
     {
-        return $this->image_path ? Storage::disk('public')->url($this->image_path) : null;
+        return $this->image_path ? Storage::disk(config('filesystems.media_disk'))->url($this->image_path) : null;
     }
 }

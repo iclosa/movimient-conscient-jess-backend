@@ -64,7 +64,7 @@
             @case('image')
                 @php $current = $model->exists ? $model->getAttribute($name) : null; @endphp
                 <div class="image-field">
-                    <img id="prev-{{ $name }}" src="{{ $current ? \Illuminate\Support\Facades\Storage::disk('public')->url($current) : '' }}" alt="" @unless($current) hidden @endunless>
+                    <img id="prev-{{ $name }}" src="{{ $current ? \Illuminate\Support\Facades\Storage::disk(config('filesystems.media_disk'))->url($current) : '' }}" alt="" @unless($current) hidden @endunless>
                     <div style="display:grid;gap:8px;flex:1">
                         <input type="file" id="{{ $id }}" name="{{ $name }}" accept="image/*" data-preview="prev-{{ $name }}">
                         @if ($current)

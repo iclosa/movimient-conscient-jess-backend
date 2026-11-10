@@ -46,3 +46,15 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
+      - key: MEDIA_DISK
+        value: r2
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false          # https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+      - key: R2_PUBLIC_URL
+        sync: false          # https://pub-xxxx.r2.dev o domini propi del bucket

@@ -17,6 +17,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Media Disk
+    |--------------------------------------------------------------------------
+    |
+    | Disc on es guarden les imatges pujades des del panell d'administració.
+    | En local és "public"; en producció (Render) és "r2", perquè el disc de
+    | Render és efímer.
+    |
+    */
+
+    'media_disk' => env('MEDIA_DISK', 'public'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |
@@ -56,6 +69,20 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
+            'report' => false,
+        ],
+
+        'r2' => [
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY_ID'),
+            'secret' => env('R2_SECRET_ACCESS_KEY'),
+            'region' => env('R2_REGION', 'auto'),
+            'bucket' => env('R2_BUCKET'),
+            'url' => env('R2_PUBLIC_URL'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'use_path_style_endpoint' => env('R2_USE_PATH_STYLE_ENDPOINT', true),
+            'visibility' => 'public',
             'throw' => false,
             'report' => false,
         ],

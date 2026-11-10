@@ -45,7 +45,7 @@ class Video extends Model
 
     public function getThumbnailUrlAttribute(): ?string
     {
-        return $this->thumbnail_path ? Storage::disk('public')->url($this->thumbnail_path) : null;
+        return $this->thumbnail_path ? Storage::disk(config('filesystems.media_disk'))->url($this->thumbnail_path) : null;
     }
 
     public function getPriceLabelAttribute(): string

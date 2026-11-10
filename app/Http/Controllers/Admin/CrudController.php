@@ -230,7 +230,7 @@ abstract class CrudController extends Controller
 
         foreach ($this->fields($model) as $field) {
             if (($field['type'] ?? null) === 'image' && $model->{$field['name']}) {
-                Storage::disk('public')->delete($model->{$field['name']});
+                Storage::disk(config('filesystems.media_disk'))->delete($model->{$field['name']});
             }
         }
 
@@ -325,11 +325,11 @@ abstract class CrudController extends Controller
                     $current = $model?->{$name};
                     if ($file) {
                         if ($current) {
-                            Storage::disk('public')->delete($current);
+                            Storage::disk(config('filesystems.media_disk'))->delete($current);
                         }
-                        $data[$name] = $file->store(Str::after($this->routeName, 'admin.'), 'public');
+                        $data[$name] = $file->store(Str::after($this->routeName, 'admin.'), config('filesystems.media_disk'));
                     } elseif ($request->boolean($name.'_remove') && $current) {
-                        Storage::disk('public')->delete($current);
+                        Storage::disk(config('filesystems.media_disk'))->delete($current);
                         $data[$name] = null;
                     }
                     break;
