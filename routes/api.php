@@ -72,6 +72,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('wellness', [ContentController::class, 'wellness'])->name('wellness');
         Route::get('wellness/sunrise', [ContentController::class, 'sunrise'])->name('wellness.sunrise');
         Route::get('announcements', [ContentController::class, 'announcements'])->name('announcements');
+        Route::post('announcements/read-all', [ContentController::class, 'markAllAnnouncementsRead'])->name('announcements.read-all');
+        Route::post('announcements/{id}/read', [ContentController::class, 'markAnnouncementRead'])->name('announcements.read');
 
         Route::get('gratitude', [ContentController::class, 'gratitudeIndex'])->name('gratitude.index');
         Route::post('gratitude', [ContentController::class, 'gratitudeStore'])->name('gratitude.store');

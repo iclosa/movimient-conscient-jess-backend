@@ -21,6 +21,8 @@ class AnnouncementResource extends JsonResource
             'title' => $this->title,
             'body' => $this->body,
             'sent_at' => $this->sent_at?->toIso8601String(),
+            'personal' => $this->user_id !== null,
+            'read' => $this->read_at !== null,
         ];
     }
 }

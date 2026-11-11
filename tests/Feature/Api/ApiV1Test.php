@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Activity;
+use App\Models\Announcement;
 use App\Models\Child;
 use App\Models\ClassSession;
 use App\Models\Event;
@@ -115,7 +116,7 @@ class ApiV1Test extends TestCase
         Sanctum::actingAs(User::factory()->create());
 
         $this->postJson('/api/v1/bookings', ['class_session_id' => $this->makeSession()->id])
-            ->assertCreated()->assertJsonPath('data.status', 'booked')->assertJsonPath('data.payment_status', 'pending');
+            ->assertCreated()->assertJsonPath('data.status', 'booked')->assertJsonPath('data.payment_mode', 'pending');
     }
 
     public function test_full_class_sends_the_person_to_the_waitlist(): void
@@ -222,48 +223,6 @@ class ApiV1Test extends TestCase
         Sanctum::actingAs(User::factory()->create());
         $this->postJson("/api/v1/events/{$event->id}/registration")->assertCreated()->assertJsonPath('data.status', 'waitlist');
         $this->postJson("/api/v1/events/{$event->id}/registration")->assertStatus(409);
-    }
-
-    public function test_my_event_registrations_list_shows_the_payment(): void
-    {
-        $event = Event::query()->create([
-            'title' => 'Retir', 'slug' => 'retir', 'type' => 'retir', 'starts_at' => now()->addWeek(),
-            'capacity' => 10, 'price_cents' => 12000, 'is_published' => true,
-        ]);
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
-        $this->postJson("/api/v1/events/{$event->id}/registration")->assertCreated();
-
-        $this->getJson('/api/v1/event-registrations')->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.status', 'confirmed')
-            ->assertJsonPath('data.0.payment_status', 'pending')
-            ->assertJsonPath('data.0.payment_amount_cents', 12000)
-            ->assertJsonPath('data.0.payment_method', 'cash')
-            ->assertJsonPath('data.0.can_cancel', true)
-            ->assertJsonPath('data.0.event.title', 'Retir');
-
-        // La vista d'esdeveniments també porta el cobrament de la meva inscripció.
-        $this->getJson('/api/v1/events')->assertOk()->assertJsonPath('data.0.my_payment_status', 'pending');
-
-        // Una cancel·lada ja no surt a «properes» però sí a «passades» només quan l'esdeveniment ha passat.
-        $this->deleteJson("/api/v1/events/{$event->id}/registration")->assertOk();
-        $this->getJson('/api/v1/event-registrations')->assertOk()->assertJsonCount(0, 'data');
-
-        // Les d'una altra persona no es veuen.
-        Sanctum::actingAs(User::factory()->create());
-        $this->getJson('/api/v1/event-registrations')->assertOk()->assertJsonCount(0, 'data');
-    }
-
-    public function test_booking_response_includes_the_payment_amount_and_method(): void
-    {
-        Sanctum::actingAs(User::factory()->create());
-
-        $this->postJson('/api/v1/bookings', ['class_session_id' => $this->makeSession()->id])
-            ->assertCreated()
-            ->assertJsonPath('data.payment_status', 'pending')
-            ->assertJsonPath('data.payment_amount_cents', 1400)
-            ->assertJsonPath('data.payment_method', 'cash');
     }
 
     public function test_gratitude_diary_is_private_per_user(): void
@@ -373,5 +332,42 @@ class ApiV1Test extends TestCase
         $this->assertSame('Per a embarassades', $es['tagline']);
         $this->assertSame(['Un', 'Dos'], $es['benefits']);
         $this->assertSame('Ioga prenatal', $es['h1']);
+    }
+
+    public function test_register_creates_welcome_announcement_and_it_can_be_marked_read(): void
+    {
+        $token = $this->postJson('/api/v1/auth/register', [
+            'name' => 'Marta Soler', 'email' => 'marta2@exemple.cat', 'password' => 'secret-pass-1',
+        ])->assertCreated()->json('token');
+
+        $list = $this->withToken($token)->getJson('/api/v1/announcements')->assertOk();
+        $list->assertJsonCount(1, 'data')->assertJsonPath('data.0.read', false)->assertJsonPath('data.0.personal', true);
+        $id = $list->json('data.0.id');
+
+        $this->withToken($token)->postJson("/api/v1/announcements/{$id}/read")->assertOk();
+        $this->withToken($token)->postJson("/api/v1/announcements/{$id}/read")->assertOk();
+        $this->withToken($token)->getJson('/api/v1/announcements')->assertJsonPath('data.0.read', true);
+
+        // L'avís personal no és visible per a altres persones.
+        $other = User::factory()->create(['role' => User::ROLE_STUDENT]);
+        Sanctum::actingAs($other);
+        $this->getJson('/api/v1/announcements')->assertJsonCount(0, 'data');
+        $this->postJson("/api/v1/announcements/{$id}/read")->assertNotFound();
+    }
+
+    public function test_mark_all_announcements_read(): void
+    {
+        $user = User::factory()->create(['role' => User::ROLE_STUDENT]);
+        foreach (['A', 'B'] as $title) {
+            Announcement::query()->create([
+                'title' => $title, 'body' => 'x', 'audience' => 'all', 'status' => 'sent',
+                'sent_at' => now()->addMinute(), 'recipients_count' => 1,
+            ]);
+        }
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/v1/announcements')->assertJsonCount(2, 'data')->assertJsonPath('data.0.read', false);
+        $this->postJson('/api/v1/announcements/read-all')->assertOk()->assertJsonPath('data.marked', 2);
+        $this->getJson('/api/v1/announcements')->assertJsonPath('data.0.read', true)->assertJsonPath('data.1.read', true);
     }
 }

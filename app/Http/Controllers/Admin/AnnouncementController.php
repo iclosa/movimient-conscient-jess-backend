@@ -26,6 +26,12 @@ class AnnouncementController extends CrudController
 
     protected string $emptyText = 'Escriu el primer avís per al teu alumnat.';
 
+    /** Els avisos personals (benvinguda) no surten al llistat del panell. */
+    protected function baseQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Announcement::query()->whereNull('user_id');
+    }
+
     protected function fields(?Model $model): array
     {
         return [

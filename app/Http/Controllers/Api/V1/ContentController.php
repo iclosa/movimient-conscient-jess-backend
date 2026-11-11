@@ -18,6 +18,7 @@ use App\Models\WellnessItem;
 use App\Services\EventRegistrationService;
 use App\Services\SunTimes;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -112,11 +113,36 @@ class ContentController extends Controller
 
     public function announcements(Request $request): AnonymousResourceCollection
     {
-        $announcements = Announcement::query()->where('status', 'sent')
-            ->where('sent_at', '>=', $request->user()->created_at)
-            ->latest('sent_at')->limit(50)->get();
+        $announcements = Announcement::query()->inboxOf($request->user())
+            ->orderByDesc('announcements.sent_at')->orderByDesc('announcements.id')->limit(50)->get();
 
         return AnnouncementResource::collection($announcements);
+    }
+
+    public function markAnnouncementRead(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $announcement = Announcement::query()->inboxOf($user)->where('announcements.id', $id)->firstOrFail();
+
+        DB::table('announcement_reads')->insertOrIgnore([
+            'announcement_id' => $announcement->id,
+            'user_id' => $user->id,
+            'read_at' => now(),
+        ]);
+
+        return response()->json(['data' => ['id' => $announcement->id, 'read' => true]]);
+    }
+
+    public function markAllAnnouncementsRead(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $unread = Announcement::query()->inboxOf($user)->whereNull('r.read_at')->pluck('announcements.id');
+
+        DB::table('announcement_reads')->insertOrIgnore(
+            $unread->map(fn ($id) => ['announcement_id' => $id, 'user_id' => $user->id, 'read_at' => now()])->all()
+        );
+
+        return response()->json(['data' => ['marked' => $unread->count()]]);
     }
 
     public function gratitudeIndex(Request $request): AnonymousResourceCollection
