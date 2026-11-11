@@ -34,7 +34,7 @@ class EventRegistrationService
     }
 
     /**
-     * Cancel·la una inscripció i el seu cobrament si encara és pendent.
+     * Cancel·la una inscripció i liquida el seu cobrament (cancel·lat, o pendent de devolució si ja s'havia cobrat).
      * Si alliberava una plaça, entra la primera persona de la llista d'espera.
      *
      * @return EventRegistration|null La persona que ha entrat des de la llista d'espera.
@@ -45,7 +45,7 @@ class EventRegistrationService
             $wasConfirmed = $registration->status === 'confirmed';
 
             $registration->update(['status' => 'cancelled']);
-            $registration->payment?->cancelUnlessCollected();
+            $registration->payment?->settleOnCancellation();
 
             if (! $wasConfirmed) {
                 return null;
@@ -68,8 +68,8 @@ class EventRegistrationService
 
     private function openPayment(EventRegistration $registration, Event $event): void
     {
-        // Si es torna a inscriure després de cancel·lar, el cobrament anul·lat no val: se'n crea un de nou.
-        if ($registration->payment !== null && $registration->payment->status !== 'cancelled') {
+        // Només es reutilitza un cobrament viu (pendent o cobrat): després de cancel·lar se'n crea un de nou.
+        if ($registration->payment !== null && in_array($registration->payment->status, ['pending', 'paid'], true)) {
             return;
         }
 

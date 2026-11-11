@@ -146,7 +146,7 @@ class BookingService
                 'late_cancellation' => $late,
             ]);
 
-            $booking->payment?->cancelUnlessCollected();
+            $booking->payment?->settleOnCancellation();
 
             if ($wasBooked) {
                 $this->promoteWaitlist($session);

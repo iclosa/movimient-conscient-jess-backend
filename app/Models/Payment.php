@@ -25,6 +25,7 @@ class Payment extends Model
     public const STATUSES = [
         'paid' => 'Cobrat',
         'pending' => 'Pendent',
+        'refund_pending' => 'Pendent de devolució',
         'refunded' => 'Retornat',
         'failed' => 'Fallit',
         'cancelled' => 'Cancel·lat',
@@ -34,6 +35,7 @@ class Payment extends Model
     public const STATUS_TONES = [
         'paid' => 'success',
         'pending' => 'warning',
+        'refund_pending' => 'warning',
         'refunded' => 'info',
         'failed' => 'danger',
         'cancelled' => 'muted',
@@ -69,6 +71,20 @@ class Payment extends Model
         return $this->morphTo();
     }
 
+    /**
+     * Camps del cobrament que s'envien a l'app (tots nuls si la plaça encara no té cobrament).
+     *
+     * @return array<string, mixed>
+     */
+    public static function apiFields(?self $payment): array
+    {
+        return [
+            'payment_status' => $payment?->status,
+            'payment_amount_cents' => $payment?->amount_cents,
+            'payment_method' => $payment?->method,
+        ];
+    }
+
     /** Hi ha diners cobrats de debò (un cobrament de 0 € per bo o classe gratuïta no compta). */
     public function isCollected(): bool
     {
@@ -76,12 +92,15 @@ class Payment extends Model
     }
 
     /**
-     * Anul·la el cobrament quan es cancel·la la reserva, tret que ja s'hagin cobrat diners:
-     * retornar-los és una decisió manual (estat «Retornat»).
+     * Cobrament d'una reserva o inscripció que es cancel·la:
+     * - si ja hi ha diners cobrats, passa a «Pendent de devolució» (el centre els ha de tornar i després el marca «Retornat»);
+     * - si encara no s'havia cobrat res (pendent, o 0 € de bo/gratuïta), queda «Cancel·lat».
      */
-    public function cancelUnlessCollected(): void
+    public function settleOnCancellation(): void
     {
-        if (in_array($this->status, ['pending', 'paid'], true) && ! $this->isCollected()) {
+        if ($this->isCollected()) {
+            $this->update(['status' => 'refund_pending']);
+        } elseif (in_array($this->status, ['pending', 'paid'], true)) {
             $this->update(['status' => 'cancelled']);
         }
     }

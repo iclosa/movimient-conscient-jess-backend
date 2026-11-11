@@ -4,6 +4,7 @@ namespace App\Http\Resources\V1;
 
 use App\Models\Booking;
 use App\Models\ClassSession;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -53,7 +54,7 @@ class ClassSessionResource extends JsonResource
             'my_bookings' => $this->whenLoaded('bookings', fn () => $mine->map(fn (Booking $b) => [
                 'id' => $b->id,
                 'status' => $b->status,
-                'payment_status' => $b->payment?->status,
+                ...Payment::apiFields($b->payment),
                 'child_id' => $b->child_id,
             ])->values()),
         ];

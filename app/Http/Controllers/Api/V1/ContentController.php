@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\AnnouncementResource;
+use App\Http\Resources\V1\EventRegistrationResource;
 use App\Http\Resources\V1\EventResource;
 use App\Http\Resources\V1\GratitudeEntryResource;
 use App\Http\Resources\V1\PromotionResource;
@@ -38,10 +39,32 @@ class ContentController extends Controller
     public function events(Request $request): AnonymousResourceCollection
     {
         $events = Event::query()->published()->upcoming()
-            ->with(['registrations' => fn ($q) => $q->where('user_id', $request->user()->id)->where('status', '!=', 'cancelled')])
+            ->with(['registrations' => fn ($q) => $q->with('payment')->where('user_id', $request->user()->id)->where('status', '!=', 'cancelled')])
             ->orderBy('starts_at')->get();
 
         return EventResource::collection($events);
+    }
+
+    /**
+     * Les meves inscripcions a tallers, retirs i esdeveniments. `scope`: upcoming (per defecte) | past.
+     */
+    public function myEventRegistrations(Request $request): AnonymousResourceCollection
+    {
+        $query = EventRegistration::query()
+            ->where('event_registrations.user_id', $request->user()->id)
+            ->with(['event', 'payment'])
+            ->join('events', 'events.id', '=', 'event_registrations.event_id')
+            ->select('event_registrations.*');
+
+        if ($request->query('scope') === 'past') {
+            $query->where('events.starts_at', '<', now())->orderByDesc('events.starts_at');
+        } else {
+            $query->where('events.starts_at', '>=', now())
+                ->whereIn('event_registrations.status', ['confirmed', 'waitlist'])
+                ->orderBy('events.starts_at');
+        }
+
+        return EventRegistrationResource::collection($query->paginate(30));
     }
 
     public function registerForEvent(Request $request, int $id, EventRegistrationService $registrations): JsonResponse

@@ -3,6 +3,7 @@
 namespace App\Http\Resources\V1;
 
 use App\Models\Booking;
+use App\Models\Payment;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -29,7 +30,7 @@ class BookingResource extends JsonResource
             'id' => $this->id,
             'status' => $this->status,
             'status_label' => $this->status_label,
-            'payment_status' => $this->payment?->status,
+            ...Payment::apiFields($this->payment),
             'attendee' => [
                 'type' => $this->child_id ? 'child' : 'user',
                 'child_id' => $this->child_id,

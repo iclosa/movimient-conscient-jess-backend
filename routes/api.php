@@ -66,6 +66,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         Route::get('promotions', [ContentController::class, 'promotions'])->name('promotions');
         Route::get('events', [ContentController::class, 'events'])->name('events.index');
+        Route::get('event-registrations', [ContentController::class, 'myEventRegistrations'])->name('events.registrations');
         Route::post('events/{id}/registration', [ContentController::class, 'registerForEvent'])->name('events.register');
         Route::delete('events/{id}/registration', [ContentController::class, 'cancelEventRegistration'])->name('events.unregister');
         Route::get('wellness', [ContentController::class, 'wellness'])->name('wellness');

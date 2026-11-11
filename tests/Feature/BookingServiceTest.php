@@ -202,14 +202,16 @@ class BookingServiceTest extends TestCase
         $this->assertSame('cancelled', $booking->payment->fresh()->status);
     }
 
-    public function test_cancelling_a_booking_keeps_an_already_paid_payment(): void
+    public function test_cancelling_a_booking_with_collected_money_leaves_the_payment_pending_refund(): void
     {
         $booking = $this->service->book(User::factory()->create(), $this->makeSession());
-        $booking->payment->update(['status' => 'paid', 'paid_at' => now()]);
+        $booking->payment->update(['status' => 'paid']);
 
         $this->service->cancel($booking);
 
-        $this->assertSame('paid', $booking->payment->fresh()->status);
+        $this->assertSame('refund_pending', $booking->payment->fresh()->status);
+        $this->assertSame(1400, $booking->payment->fresh()->amount_cents);
+        $this->assertSame(0, (int) Payment::query()->where('status', 'paid')->sum('amount_cents'));
     }
 
     public function test_waitlist_promotion_opens_the_payment(): void

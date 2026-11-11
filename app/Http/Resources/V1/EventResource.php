@@ -3,6 +3,7 @@
 namespace App\Http\Resources\V1;
 
 use App\Models\Event;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -33,6 +34,7 @@ class EventResource extends JsonResource
             'price_label' => $this->price_label,
             'image_url' => $this->image_url,
             'my_registration' => $mine?->status,
+            ...collect(Payment::apiFields($mine?->payment))->mapWithKeys(fn ($v, $k) => ['my_'.$k => $v])->all(),
         ];
     }
 }

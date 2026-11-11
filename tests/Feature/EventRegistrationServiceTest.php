@@ -56,14 +56,28 @@ class EventRegistrationServiceTest extends TestCase
         $this->assertSame(0, $registration->payment->amount_cents);
     }
 
-    public function test_cancelling_keeps_a_payment_that_already_collected_money(): void
+    public function test_cancelling_with_collected_money_leaves_the_payment_pending_refund(): void
     {
         $registration = $this->service->register($this->makeEvent(), User::factory()->create());
         $registration->payment->update(['status' => 'paid']);
 
         $this->service->cancel($registration);
 
-        $this->assertSame('paid', $registration->payment->fresh()->status);
+        $this->assertSame('refund_pending', $registration->payment->fresh()->status);
+    }
+
+    public function test_registering_again_while_a_refund_is_pending_opens_a_new_payment(): void
+    {
+        $event = $this->makeEvent();
+        $user = User::factory()->create();
+        $first = $this->service->register($event, $user);
+        $first->payment->update(['status' => 'paid']);
+        $this->service->cancel($first);
+
+        $again = $this->service->register($event, $user);
+
+        $this->assertSame('pending', $again->fresh()->payment->status);
+        $this->assertSame('refund_pending', Payment::query()->find($first->payment_id)->status);
     }
 
     public function test_cancelling_cancels_the_pending_payment(): void
