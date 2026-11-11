@@ -53,6 +53,7 @@ class PaymentController extends CrudController
                 'pending' => ['Pendent', 'warning'],
                 'refunded' => ['Retornat', 'info'],
                 'failed' => ['Fallit', 'danger'],
+                'cancelled' => ['Cancel·lat', 'muted'],
             ]],
         ];
     }

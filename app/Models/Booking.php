@@ -73,6 +73,11 @@ class Booking extends Model
         return $this->belongsTo(UserPass::class);
     }
 
+    public function payment(): BelongsTo
+    {
+        return $this->belongsTo(Payment::class);
+    }
+
     public function scopeOccupying(Builder $query): Builder
     {
         return $query->whereIn('status', self::OCCUPYING_STATUSES);

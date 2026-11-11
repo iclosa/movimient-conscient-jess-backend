@@ -25,6 +25,7 @@ class Payment extends Model
         'pending' => 'Pendent',
         'refunded' => 'Retornat',
         'failed' => 'Fallit',
+        'cancelled' => 'Cancel·lat',
     ];
 
     /**
@@ -43,6 +44,17 @@ class Payment extends Model
     public function payable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /**
+     * Anul·la el cobrament si encara està pendent. Un cobrament ja cobrat no es toca:
+     * retornar els diners és una decisió manual (estat «Retornat»).
+     */
+    public function cancelIfPending(): void
+    {
+        if ($this->status === 'pending') {
+            $this->update(['status' => 'cancelled']);
+        }
     }
 
     public function getAmountLabelAttribute(): string

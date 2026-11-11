@@ -6,6 +6,7 @@ use App\Exceptions\BookingException;
 use App\Models\Booking;
 use App\Models\Child;
 use App\Models\ClassSession;
+use App\Models\Payment;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\UserPass;
@@ -88,7 +89,7 @@ class BookingService
 
             $pass?->consume();
 
-            return Booking::create([
+            $booking = Booking::create([
                 'user_id' => $user->id,
                 'class_session_id' => $session->id,
                 'child_id' => $child?->id,
@@ -97,6 +98,10 @@ class BookingService
                 'payment_mode' => $mode,
                 'source' => $source,
             ]);
+
+            $this->openPayment($booking, $session);
+
+            return $booking;
         });
     }
 
@@ -133,6 +138,8 @@ class BookingService
                 'cancelled_at' => now(),
                 'late_cancellation' => $late,
             ]);
+
+            $booking->payment?->cancelIfPending();
 
             if ($wasBooked) {
                 $this->promoteWaitlist($session);
@@ -177,6 +184,8 @@ class BookingService
                 'user_pass_id' => $pass?->id,
             ]);
 
+            $this->openPayment($candidate, $session);
+
             $promoted->push($candidate);
         }
 
@@ -206,6 +215,33 @@ class BookingService
         ]);
 
         return $booking->refresh();
+    }
+
+    /**
+     * Genera el cobrament d'una reserva que ocupa plaça: efectiu i pendent per defecte.
+     * Només si hi ha alguna cosa a cobrar: les reserves amb bo o gratuïtes no en generen
+     * (el bo ja va tenir el seu cobrament en comprar-lo).
+     */
+    private function openPayment(Booking $booking, ClassSession $session): void
+    {
+        if ($booking->payment_mode !== Booking::PAYMENT_PENDING || $session->price_cents <= 0) {
+            return;
+        }
+
+        $session->loadMissing('activity');
+
+        $payment = Payment::create([
+            'user_id' => $booking->user_id,
+            'amount_cents' => $session->price_cents,
+            'currency' => 'EUR',
+            'method' => 'cash',
+            'status' => 'pending',
+            'concept' => 'Classe: '.$session->activity->name.' ('.$session->starts_at->format('d/m/Y H:i').')',
+            'payable_type' => $booking->getMorphClass(),
+            'payable_id' => $booking->id,
+        ]);
+
+        $booking->update(['payment_id' => $payment->id]);
     }
 
     /**

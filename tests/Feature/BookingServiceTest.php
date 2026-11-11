@@ -7,6 +7,7 @@ use App\Models\Activity;
 use App\Models\Booking;
 use App\Models\Child;
 use App\Models\ClassSession;
+use App\Models\Payment;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\UserPass;
@@ -142,6 +143,63 @@ class BookingServiceTest extends TestCase
         $this->assertSame(Booking::STATUS_BOOKED, $broke->bookings()->first()->status);
         $this->assertSame(Booking::PAYMENT_PENDING, $broke->bookings()->first()->payment_mode);
         $this->assertSame(Booking::STATUS_WAITLIST, $next->bookings()->first()->status);
+    }
+
+    public function test_booking_without_a_pass_opens_a_pending_cash_payment(): void
+    {
+        $user = User::factory()->create();
+
+        $booking = $this->service->book($user, $this->makeSession(price: 1400));
+
+        $payment = $booking->payment;
+        $this->assertNotNull($payment);
+        $this->assertSame('cash', $payment->method);
+        $this->assertSame('pending', $payment->status);
+        $this->assertSame(1400, $payment->amount_cents);
+        $this->assertSame($user->id, $payment->user_id);
+    }
+
+    public function test_bookings_with_a_pass_or_free_do_not_open_a_payment(): void
+    {
+        $withPass = $this->service->book($this->studentWithPass(), $this->makeSession());
+        $free = $this->service->book(User::factory()->create(), $this->makeSession(price: 0));
+
+        $this->assertNull($withPass->payment_id);
+        $this->assertNull($free->payment_id);
+        $this->assertSame(0, Payment::query()->count());
+    }
+
+    public function test_cancelling_a_booking_cancels_its_pending_payment(): void
+    {
+        $booking = $this->service->book(User::factory()->create(), $this->makeSession());
+
+        $this->service->cancel($booking);
+
+        $this->assertSame('cancelled', $booking->payment->fresh()->status);
+    }
+
+    public function test_cancelling_a_booking_keeps_an_already_paid_payment(): void
+    {
+        $booking = $this->service->book(User::factory()->create(), $this->makeSession());
+        $booking->payment->update(['status' => 'paid', 'paid_at' => now()]);
+
+        $this->service->cancel($booking);
+
+        $this->assertSame('paid', $booking->payment->fresh()->status);
+    }
+
+    public function test_waitlist_promotion_opens_the_payment(): void
+    {
+        $session = $this->makeSession(capacity: 1);
+        $first = $this->service->book(User::factory()->create(), $session);
+        $waiting = $this->service->book(User::factory()->create(), $session);
+        $this->assertNull($waiting->payment_id);
+
+        $this->service->cancel($first);
+
+        $promoted = $waiting->fresh();
+        $this->assertSame(Booking::STATUS_BOOKED, $promoted->status);
+        $this->assertSame('pending', $promoted->payment->status);
     }
 
     public function test_late_cancellation_keeps_the_class_consumed(): void

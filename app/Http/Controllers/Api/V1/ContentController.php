@@ -11,10 +11,10 @@ use App\Http\Resources\V1\WellnessItemResource;
 use App\Models\Announcement;
 use App\Models\Event;
 use App\Models\EventRegistration;
-use App\Models\Payment;
 use App\Models\Promotion;
 use App\Models\Setting;
 use App\Models\WellnessItem;
+use App\Services\EventRegistrationService;
 use App\Services\SunTimes;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -44,9 +44,9 @@ class ContentController extends Controller
         return EventResource::collection($events);
     }
 
-    public function registerForEvent(Request $request, int $id): JsonResponse
+    public function registerForEvent(Request $request, int $id, EventRegistrationService $registrations): JsonResponse
     {
-        $event = Event::query()->published()->upcoming()->withCount('confirmedRegistrations')->findOrFail($id);
+        $event = Event::query()->published()->upcoming()->findOrFail($id);
         $user = $request->user();
 
         $existing = EventRegistration::where('event_id', $event->id)->where('user_id', $user->id)->first();
@@ -54,43 +54,17 @@ class ContentController extends Controller
             return response()->json(['message' => 'Ja estàs inscrit/a a aquest esdeveniment.', 'code' => 'already_registered'], 409);
         }
 
-        $full = $event->capacity !== null && $event->confirmed_registrations_count >= $event->capacity;
-        $status = $full ? 'waitlist' : 'confirmed';
+        $registration = $registrations->register($event, $user);
 
-        $registration = EventRegistration::updateOrCreate(
-            ['event_id' => $event->id, 'user_id' => $user->id],
-            ['status' => $status],
-        );
-
-        if ($status === 'confirmed' && $event->price_cents > 0 && ! $registration->payment_id) {
-            $payment = Payment::create([
-                'user_id' => $user->id,
-                'amount_cents' => $event->price_cents,
-                'currency' => 'EUR',
-                'method' => 'stripe',
-                'status' => 'pending',
-                'concept' => 'Esdeveniment: '.$event->title,
-                'payable_type' => $event->getMorphClass(),
-                'payable_id' => $event->id,
-            ]);
-            $registration->update(['payment_id' => $payment->id]);
-        }
-
-        return response()->json(['data' => ['status' => $status]], 201);
+        return response()->json(['data' => ['status' => $registration->status]], 201);
     }
 
-    public function cancelEventRegistration(Request $request, int $id): JsonResponse
+    public function cancelEventRegistration(Request $request, int $id, EventRegistrationService $registrations): JsonResponse
     {
         $registration = EventRegistration::where('event_id', $id)
             ->where('user_id', $request->user()->id)->where('status', '!=', 'cancelled')->firstOrFail();
 
-        $wasConfirmed = $registration->status === 'confirmed';
-        $registration->update(['status' => 'cancelled']);
-
-        if ($wasConfirmed) {
-            EventRegistration::where('event_id', $id)->where('status', 'waitlist')->oldest()->first()
-                ?->update(['status' => 'confirmed']);
-        }
+        $registrations->cancel($registration);
 
         return response()->json(['message' => 'Inscripció cancel·lada.']);
     }

@@ -14,6 +14,11 @@ class EventRegistration extends Model
         return $this->belongsTo(Event::class);
     }
 
+    public function payment(): BelongsTo
+    {
+        return $this->belongsTo(Payment::class);
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

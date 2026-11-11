@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\User;
+use App\Services\EventRegistrationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -102,37 +103,24 @@ class EventController extends CrudController
         ]);
     }
 
-    public function register(Request $request, int|string $id): RedirectResponse
+    public function register(Request $request, int|string $id, EventRegistrationService $registrations): RedirectResponse
     {
-        $event = Event::query()->withCount('confirmedRegistrations')->findOrFail($id);
+        $event = Event::query()->findOrFail($id);
         $data = $request->validate(['user_id' => ['required', 'exists:users,id']], [], ['user_id' => 'alumne/a']);
 
         if (EventRegistration::query()->where('event_id', $event->id)->where('user_id', $data['user_id'])->where('status', '!=', 'cancelled')->exists()) {
             return back()->with('error', 'Aquesta persona ja està inscrita.');
         }
 
-        $full = $event->capacity !== null && $event->confirmed_registrations_count >= $event->capacity;
-
-        EventRegistration::query()->updateOrCreate(
-            ['event_id' => $event->id, 'user_id' => $data['user_id']],
-            ['status' => $full ? 'waitlist' : 'confirmed'],
-        );
+        $registration = $registrations->register($event, User::query()->findOrFail($data['user_id']));
+        $full = $registration->status === 'waitlist';
 
         return back()->with('status', $full ? 'El taller està ple: s\'ha afegit a la llista d\'espera.' : 'Inscripció feta.');
     }
 
-    public function unregister(int|string $registrationId): RedirectResponse
+    public function unregister(int|string $registrationId, EventRegistrationService $registrations): RedirectResponse
     {
-        $registration = EventRegistration::query()->findOrFail($registrationId);
-        $registration->update(['status' => 'cancelled']);
-
-        // Si hay lista de espera, entra la primera persona.
-        $next = EventRegistration::query()
-            ->where('event_id', $registration->event_id)
-            ->where('status', 'waitlist')
-            ->orderBy('created_at')
-            ->first();
-        $next?->update(['status' => 'confirmed']);
+        $next = $registrations->cancel(EventRegistration::query()->findOrFail($registrationId));
 
         return back()->with('status', 'Inscripció cancel·lada.'.($next ? ' Ha entrat la primera persona de la llista d\'espera.' : ''));
     }
