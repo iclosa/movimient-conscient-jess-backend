@@ -65,7 +65,7 @@ class BookingServiceTest extends TestCase
         $booking = $this->service->book($user, $this->makeSession());
 
         $this->assertSame(Booking::STATUS_BOOKED, $booking->status);
-        $this->assertSame('pass', $booking->payment_mode);
+        $this->assertSame('pass', $booking->payment->method);
         $this->assertSame(2, $user->userPasses()->first()->classes_remaining);
     }
 
@@ -83,14 +83,14 @@ class BookingServiceTest extends TestCase
         $booking = $this->service->book(User::factory()->create(), $this->makeSession());
 
         $this->assertSame(Booking::STATUS_BOOKED, $booking->status);
-        $this->assertSame(Booking::PAYMENT_PENDING, $booking->payment_mode);
+        $this->assertSame('pending', $booking->payment->status);
     }
 
     public function test_free_class_needs_no_pass(): void
     {
         $booking = $this->service->book(User::factory()->create(), $this->makeSession(price: 0));
 
-        $this->assertSame('free', $booking->payment_mode);
+        $this->assertSame('free', $booking->payment->method);
     }
 
     public function test_the_same_person_cannot_book_twice(): void
@@ -141,7 +141,7 @@ class BookingServiceTest extends TestCase
         $this->service->cancel($booked);
 
         $this->assertSame(Booking::STATUS_BOOKED, $broke->bookings()->first()->status);
-        $this->assertSame(Booking::PAYMENT_PENDING, $broke->bookings()->first()->payment_mode);
+        $this->assertSame('pending', $broke->bookings()->first()->payment->status);
         $this->assertSame(Booking::STATUS_WAITLIST, $next->bookings()->first()->status);
     }
 
@@ -159,14 +159,38 @@ class BookingServiceTest extends TestCase
         $this->assertSame($user->id, $payment->user_id);
     }
 
-    public function test_bookings_with_a_pass_or_free_do_not_open_a_payment(): void
+    public function test_bookings_with_a_pass_or_free_open_a_collected_payment_of_zero(): void
     {
         $withPass = $this->service->book($this->studentWithPass(), $this->makeSession());
         $free = $this->service->book(User::factory()->create(), $this->makeSession(price: 0));
 
-        $this->assertNull($withPass->payment_id);
-        $this->assertNull($free->payment_id);
-        $this->assertSame(0, Payment::query()->count());
+        $this->assertSame(['pass', 'paid', 0], [$withPass->payment->method, $withPass->payment->status, $withPass->payment->amount_cents]);
+        $this->assertSame(['free', 'paid', 0], [$free->payment->method, $free->payment->status, $free->payment->amount_cents]);
+        $this->assertNotNull($withPass->payment->paid_at);
+    }
+
+    public function test_cancelling_a_pass_booking_cancels_its_zero_payment(): void
+    {
+        $booking = $this->service->book($this->studentWithPass(), $this->makeSession());
+
+        $this->service->cancel($booking);
+
+        $this->assertSame('cancelled', $booking->payment->fresh()->status);
+    }
+
+    public function test_marking_a_payment_as_paid_sets_the_date_and_back_to_pending_clears_it(): void
+    {
+        $booking = $this->service->book(User::factory()->create(), $this->makeSession());
+        $payment = $booking->payment;
+        $this->assertNull($payment->paid_at);
+
+        $payment->update(['status' => 'paid']);
+        $this->assertNotNull($payment->fresh()->paid_at);
+        $this->assertSame(1400, (int) Payment::query()->where('status', 'paid')
+            ->whereBetween('paid_at', [now()->startOfMonth(), now()->endOfMonth()])->sum('amount_cents'));
+
+        $payment->update(['status' => 'pending']);
+        $this->assertNull($payment->fresh()->paid_at);
     }
 
     public function test_cancelling_a_booking_cancels_its_pending_payment(): void

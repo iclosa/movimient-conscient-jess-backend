@@ -121,7 +121,7 @@ class ClassSessionController extends CrudController
             ->findOrFail($id);
 
         $bookings = $session->bookings()
-            ->with(['user', 'child'])
+            ->with(['user', 'child', 'payment'])
             ->whereIn('status', [...Booking::OCCUPYING_STATUSES])
             ->orderBy('created_at')
             ->get();

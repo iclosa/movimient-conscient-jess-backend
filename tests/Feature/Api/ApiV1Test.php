@@ -115,7 +115,7 @@ class ApiV1Test extends TestCase
         Sanctum::actingAs(User::factory()->create());
 
         $this->postJson('/api/v1/bookings', ['class_session_id' => $this->makeSession()->id])
-            ->assertCreated()->assertJsonPath('data.status', 'booked')->assertJsonPath('data.payment_mode', 'pending');
+            ->assertCreated()->assertJsonPath('data.status', 'booked')->assertJsonPath('data.payment_status', 'pending');
     }
 
     public function test_full_class_sends_the_person_to_the_waitlist(): void

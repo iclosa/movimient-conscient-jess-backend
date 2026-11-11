@@ -47,12 +47,23 @@ class EventRegistrationServiceTest extends TestCase
         $this->assertSame(3500, $registration->payment->amount_cents);
     }
 
-    public function test_free_events_do_not_open_a_payment(): void
+    public function test_free_events_open_a_collected_payment_of_zero(): void
     {
         $registration = $this->service->register($this->makeEvent(price: 0), User::factory()->create());
 
-        $this->assertNull($registration->payment_id);
-        $this->assertSame(0, Payment::query()->count());
+        $this->assertSame('free', $registration->payment->method);
+        $this->assertSame('paid', $registration->payment->status);
+        $this->assertSame(0, $registration->payment->amount_cents);
+    }
+
+    public function test_cancelling_keeps_a_payment_that_already_collected_money(): void
+    {
+        $registration = $this->service->register($this->makeEvent(), User::factory()->create());
+        $registration->payment->update(['status' => 'paid']);
+
+        $this->service->cancel($registration);
+
+        $this->assertSame('paid', $registration->payment->fresh()->status);
     }
 
     public function test_cancelling_cancels_the_pending_payment(): void

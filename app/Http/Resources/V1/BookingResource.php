@@ -29,7 +29,7 @@ class BookingResource extends JsonResource
             'id' => $this->id,
             'status' => $this->status,
             'status_label' => $this->status_label,
-            'payment_mode' => $this->payment_mode,
+            'payment_status' => $this->payment?->status,
             'attendee' => [
                 'type' => $this->child_id ? 'child' : 'user',
                 'child_id' => $this->child_id,

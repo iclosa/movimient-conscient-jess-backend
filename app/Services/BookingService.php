@@ -16,6 +16,15 @@ use Illuminate\Support\Facades\DB;
 class BookingService
 {
     /**
+     * Cómo se paga una plaza (decisión interna al reservar). El estado real del pago es siempre el de su cobro.
+     */
+    public const PAYMENT_PASS = 'pass';
+
+    public const PAYMENT_FREE = 'free';
+
+    public const PAYMENT_PENDING = 'pending';
+
+    /**
      * Reserva una plaza (o entra en lista de espera si la clase está llena).
      *
      * @param  string|null  $forcedPayment  Solo admin: 'free' | 'pending' para saltarse el bono.
@@ -80,7 +89,6 @@ class BookingService
                     'class_session_id' => $session->id,
                     'child_id' => $child?->id,
                     'status' => Booking::STATUS_WAITLIST,
-                    'payment_mode' => Booking::PAYMENT_PENDING,
                     'source' => $source,
                 ]);
             }
@@ -95,11 +103,10 @@ class BookingService
                 'child_id' => $child?->id,
                 'user_pass_id' => $pass?->id,
                 'status' => Booking::STATUS_BOOKED,
-                'payment_mode' => $mode,
                 'source' => $source,
             ]);
 
-            $this->openPayment($booking, $session);
+            $this->openPayment($booking, $session, $mode);
 
             return $booking;
         });
@@ -139,7 +146,7 @@ class BookingService
                 'late_cancellation' => $late,
             ]);
 
-            $booking->payment?->cancelIfPending();
+            $booking->payment?->cancelUnlessCollected();
 
             if ($wasBooked) {
                 $this->promoteWaitlist($session);
@@ -180,11 +187,10 @@ class BookingService
 
             $candidate->update([
                 'status' => Booking::STATUS_BOOKED,
-                'payment_mode' => $mode,
                 'user_pass_id' => $pass?->id,
             ]);
 
-            $this->openPayment($candidate, $session);
+            $this->openPayment($candidate, $session, $mode);
 
             $promoted->push($candidate);
         }
@@ -218,24 +224,27 @@ class BookingService
     }
 
     /**
-     * Genera el cobrament d'una reserva que ocupa plaça: efectiu i pendent per defecte.
-     * Només si hi ha alguna cosa a cobrar: les reserves amb bo o gratuïtes no en generen
-     * (el bo ja va tenir el seu cobrament en comprar-lo).
+     * Genera el cobrament de tota reserva que ocupa plaça. L'estat del cobrament és l'únic estat de pagament:
+     * - sense bo i de pagament: import de la classe, en efectiu i pendent;
+     * - amb bo o gratuïta: 0 € ja cobrat (el bo va tenir el seu cobrament en comprar-lo; així no es compta dues vegades).
      */
-    private function openPayment(Booking $booking, ClassSession $session): void
+    private function openPayment(Booking $booking, ClassSession $session, string $mode): void
     {
-        if ($booking->payment_mode !== Booking::PAYMENT_PENDING || $session->price_cents <= 0) {
-            return;
-        }
-
         $session->loadMissing('activity');
+
+        // [import, forma de pagament, estat]
+        [$amount, $method, $status] = match (true) {
+            $mode === self::PAYMENT_PASS => [0, 'pass', 'paid'],
+            $mode === self::PAYMENT_PENDING && $session->price_cents > 0 => [$session->price_cents, 'cash', 'pending'],
+            default => [0, 'free', 'paid'],
+        };
 
         $payment = Payment::create([
             'user_id' => $booking->user_id,
-            'amount_cents' => $session->price_cents,
+            'amount_cents' => $amount,
             'currency' => 'EUR',
-            'method' => 'cash',
-            'status' => 'pending',
+            'method' => $method,
+            'status' => $status,
             'concept' => 'Classe: '.$session->activity->name.' ('.$session->starts_at->format('d/m/Y H:i').')',
             'payable_type' => $booking->getMorphClass(),
             'payable_id' => $booking->id,
@@ -253,21 +262,21 @@ class BookingService
      */
     private function resolvePayment(User $user, ClassSession $session, ?string $forced): array
     {
-        if ($forced !== null && in_array($forced, [Booking::PAYMENT_FREE, Booking::PAYMENT_PENDING], true)) {
+        if ($forced !== null && in_array($forced, [self::PAYMENT_FREE, self::PAYMENT_PENDING], true)) {
             return [$forced, null];
         }
 
         $pass = $user->bestUsablePass();
 
         if ($pass !== null) {
-            return [Booking::PAYMENT_PASS, $pass];
+            return [self::PAYMENT_PASS, $pass];
         }
 
         if ($session->price_cents === 0) {
-            return [Booking::PAYMENT_FREE, null];
+            return [self::PAYMENT_FREE, null];
         }
 
         // Sense bo: la plaça queda reservada i pendent de pagar (es cobra a la classe o amb un bo).
-        return [Booking::PAYMENT_PENDING, null];
+        return [self::PAYMENT_PENDING, null];
     }
 }

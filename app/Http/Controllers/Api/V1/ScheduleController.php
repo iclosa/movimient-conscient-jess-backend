@@ -40,7 +40,7 @@ class ScheduleController extends Controller
 
         $sessions = ClassSession::query()
             ->with(['activity', 'instructor', 'room'])
-            ->with(['bookings' => fn ($q) => $q->where('user_id', $userId)->whereIn('status', [Booking::STATUS_BOOKED, Booking::STATUS_WAITLIST, Booking::STATUS_ATTENDED])])
+            ->with(['bookings' => fn ($q) => $q->with('payment')->where('user_id', $userId)->whereIn('status', [Booking::STATUS_BOOKED, Booking::STATUS_WAITLIST, Booking::STATUS_ATTENDED])])
             ->whereBetween('starts_at', [$from, $to])
             ->when($data['activity_id'] ?? null, fn ($q, $id) => $q->where('activity_id', $id))
             ->orderBy('starts_at')
@@ -55,7 +55,7 @@ class ScheduleController extends Controller
 
         $session = ClassSession::query()
             ->with(['activity', 'instructor', 'room'])
-            ->with(['bookings' => fn ($q) => $q->where('user_id', $userId)->whereIn('status', [Booking::STATUS_BOOKED, Booking::STATUS_WAITLIST, Booking::STATUS_ATTENDED])])
+            ->with(['bookings' => fn ($q) => $q->with('payment')->where('user_id', $userId)->whereIn('status', [Booking::STATUS_BOOKED, Booking::STATUS_WAITLIST, Booking::STATUS_ATTENDED])])
             ->findOrFail($id);
 
         return new ClassSessionResource($session);

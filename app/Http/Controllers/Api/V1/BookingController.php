@@ -25,7 +25,7 @@ class BookingController extends Controller
 
         $query = Booking::query()
             ->where('bookings.user_id', $request->user()->id)
-            ->with(['classSession.activity', 'classSession.instructor', 'classSession.room', 'child'])
+            ->with(['classSession.activity', 'classSession.instructor', 'classSession.room', 'child', 'payment'])
             ->join('class_sessions', 'class_sessions.id', '=', 'bookings.class_session_id')
             ->select('bookings.*');
 
@@ -51,7 +51,7 @@ class BookingController extends Controller
 
         $booking = $this->bookings->book($request->user(), ClassSession::findOrFail($data['class_session_id']), $child);
 
-        return (new BookingResource($booking->load(['classSession.activity', 'classSession.instructor', 'classSession.room', 'child'])))
+        return (new BookingResource($booking->load(['classSession.activity', 'classSession.instructor', 'classSession.room', 'child', 'payment'])))
             ->response()->setStatusCode(201);
     }
 
@@ -61,7 +61,7 @@ class BookingController extends Controller
 
         $booking = $this->bookings->cancel($booking);
 
-        return new BookingResource($booking->load(['classSession.activity', 'child']));
+        return new BookingResource($booking->load(['classSession.activity', 'child', 'payment']));
     }
 
     public function rate(Request $request, int $id): BookingResource
@@ -75,6 +75,6 @@ class BookingController extends Controller
 
         $this->bookings->rate($booking, $data['rating'], $data['comment'] ?? null);
 
-        return new BookingResource($booking->refresh()->load(['classSession.activity', 'child']));
+        return new BookingResource($booking->refresh()->load(['classSession.activity', 'child', 'payment']));
     }
 }

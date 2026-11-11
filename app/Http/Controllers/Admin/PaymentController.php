@@ -48,13 +48,8 @@ class PaymentController extends CrudController
             ['label' => 'Concepte', 'key' => 'concept'],
             ['label' => 'Import', 'key' => 'amount_cents', 'type' => 'money'],
             ['label' => 'Forma', 'key' => 'method', 'type' => 'badge', 'map' => collect(Payment::METHODS)->map(fn ($l) => [$l, 'muted'])->all()],
-            ['label' => 'Estat', 'key' => 'status', 'type' => 'badge', 'map' => [
-                'paid' => ['Cobrat', 'success'],
-                'pending' => ['Pendent', 'warning'],
-                'refunded' => ['Retornat', 'info'],
-                'failed' => ['Fallit', 'danger'],
-                'cancelled' => ['Cancel·lat', 'muted'],
-            ]],
+            ['label' => 'Estat', 'key' => 'status', 'type' => 'badge', 'map' => collect(Payment::STATUSES)
+                ->map(fn ($label, $status) => [$label, Payment::STATUS_TONES[$status]])->all()],
         ];
     }
 

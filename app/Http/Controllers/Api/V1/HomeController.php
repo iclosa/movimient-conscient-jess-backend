@@ -23,7 +23,7 @@ class HomeController extends Controller
     public function __invoke(Request $request, PracticeStreak $streak): JsonResponse
     {
         $user = $request->user();
-        $with = ['classSession.activity', 'classSession.instructor', 'classSession.room', 'child'];
+        $with = ['classSession.activity', 'classSession.instructor', 'classSession.room', 'child', 'payment'];
 
         $base = fn () => Booking::query()
             ->where('bookings.user_id', $user->id)

@@ -12,7 +12,7 @@ class EventRegistrationService
 {
     /**
      * Inscriu una persona a un taller, retir o esdeveniment (o a la llista d'espera si està ple).
-     * Si queda confirmada i l'esdeveniment és de pagament, genera el cobrament (efectiu, pendent).
+     * Si queda confirmada, genera el cobrament: efectiu i pendent si és de pagament, o 0 € cobrat si és gratuït.
      */
     public function register(Event $event, User $user): EventRegistration
     {
@@ -45,7 +45,7 @@ class EventRegistrationService
             $wasConfirmed = $registration->status === 'confirmed';
 
             $registration->update(['status' => 'cancelled']);
-            $registration->payment?->cancelIfPending();
+            $registration->payment?->cancelUnlessCollected();
 
             if (! $wasConfirmed) {
                 return null;
@@ -68,10 +68,6 @@ class EventRegistrationService
 
     private function openPayment(EventRegistration $registration, Event $event): void
     {
-        if ($event->price_cents <= 0) {
-            return;
-        }
-
         // Si es torna a inscriure després de cancel·lar, el cobrament anul·lat no val: se'n crea un de nou.
         if ($registration->payment !== null && $registration->payment->status !== 'cancelled') {
             return;
@@ -81,8 +77,8 @@ class EventRegistrationService
             'user_id' => $registration->user_id,
             'amount_cents' => $event->price_cents,
             'currency' => 'EUR',
-            'method' => 'cash',
-            'status' => 'pending',
+            'method' => $event->price_cents > 0 ? 'cash' : 'free',
+            'status' => $event->price_cents > 0 ? 'pending' : 'paid',
             'concept' => 'Esdeveniment: '.$event->title,
             'payable_type' => $event->getMorphClass(),
             'payable_id' => $event->id,

@@ -16,12 +16,22 @@
             @if ($registrations->count())
                 <div class="table-wrap">
                     <table class="table">
-                        <thead><tr><th>Persona</th><th>Estat</th><th>Inscrita</th><th></th></tr></thead>
+                        <thead><tr><th>Persona</th><th>Estat</th><th>Pagament</th><th>Inscrita</th><th></th></tr></thead>
                         <tbody>
                         @foreach ($registrations as $registration)
                             <tr>
                                 <td><a class="cell-main" href="{{ route('admin.students.show', $registration->user) }}">{{ $registration->user->name }}<small>{{ $registration->user->email }}</small></a></td>
                                 <td><x-badge tone="{{ ['confirmed' => 'success', 'waitlist' => 'warning', 'cancelled' => 'danger'][$registration->status] }}">{{ ['confirmed' => 'Confirmada', 'waitlist' => 'En espera', 'cancelled' => 'Cancel·lada'][$registration->status] }}</x-badge></td>
+                                <td>
+                                    @if ($registration->payment)
+                                        <a href="{{ route('admin.payments.edit', $registration->payment) }}" class="cell-main">
+                                            <x-badge :tone="$registration->payment->status_tone">{{ $registration->payment->status_label }}</x-badge>
+                                            <small>{{ $registration->payment->amount_label }} · {{ $registration->payment->method_label }}</small>
+                                        </a>
+                                    @else
+                                        —
+                                    @endif
+                                </td>
                                 <td>{{ $registration->created_at->format('d/m/Y') }}</td>
                                 <td class="actions">
                                     @if ($registration->status !== 'cancelled')

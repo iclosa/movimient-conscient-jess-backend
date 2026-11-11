@@ -4,7 +4,6 @@
 @section('content')
     @php
         $pct = $session->capacity ? min(100, (int) round($session->occupying_bookings_count / $session->capacity * 100)) : 0;
-        $payBadges = ['pass' => ['Bo', 'primary'], 'free' => ['Gratuïta', 'teal'], 'cash' => ['Pagada en mà', 'success'], 'pending' => ['Pendent', 'warning']];
     @endphp
 
     <x-page-header
@@ -61,14 +60,22 @@
                         <thead><tr><th>Persona</th><th>Pagament</th><th>Estat</th><th></th></tr></thead>
                         <tbody>
                         @foreach ($bookings as $booking)
-                            @php [$payLabel, $payTone] = $payBadges[$booking->payment_mode] ?? [$booking->payment_mode, 'muted']; @endphp
                             <tr>
                                 <td>
                                     <a href="{{ route('admin.students.show', $booking->user) }}" class="cell-main">{{ $booking->attendee_name }}
                                         @if ($booking->child)<small>Fill/a de {{ $booking->user->name }}</small>@else<small>{{ $booking->user->phone ?: $booking->user->email }}</small>@endif
                                     </a>
                                 </td>
-                                <td><x-badge :tone="$payTone">{{ $payLabel }}</x-badge></td>
+                                <td>
+                                    @if ($booking->payment)
+                                        <a href="{{ route('admin.payments.edit', $booking->payment) }}" class="cell-main">
+                                            <x-badge :tone="$booking->payment->status_tone">{{ $booking->payment->status_label }}</x-badge>
+                                            <small>{{ $booking->payment->amount_label }} · {{ $booking->payment->method_label }}</small>
+                                        </a>
+                                    @else
+                                        —
+                                    @endif
+                                </td>
                                 <td>
                                     <x-badge tone="{{ ['booked' => 'info', 'attended' => 'success', 'no_show' => 'danger'][$booking->status] ?? 'muted' }}">{{ $booking->status_label }}</x-badge>
                                     @if ($booking->rating)<x-stars :value="$booking->rating" />@endif

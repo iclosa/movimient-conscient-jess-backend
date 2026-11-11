@@ -53,7 +53,7 @@ class ClassSessionResource extends JsonResource
             'my_bookings' => $this->whenLoaded('bookings', fn () => $mine->map(fn (Booking $b) => [
                 'id' => $b->id,
                 'status' => $b->status,
-                'payment_mode' => $b->payment_mode,
+                'payment_status' => $b->payment?->status,
                 'child_id' => $b->child_id,
             ])->values()),
         ];

@@ -98,7 +98,7 @@ class EventController extends CrudController
 
         return view('admin.events.registrations', [
             'event' => $event,
-            'registrations' => $event->registrations()->with('user')->orderBy('created_at')->get(),
+            'registrations' => $event->registrations()->with(['user', 'payment'])->orderBy('created_at')->get(),
             'students' => User::query()->students()->where('is_active', true)->orderBy('name')->pluck('name', 'id'),
         ]);
     }

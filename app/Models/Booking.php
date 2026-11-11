@@ -23,14 +23,6 @@ class Booking extends Model
     /** Estados que ocupan plaza en la clase. */
     public const OCCUPYING_STATUSES = [self::STATUS_BOOKED, self::STATUS_ATTENDED, self::STATUS_NO_SHOW];
 
-    public const PAYMENT_PASS = 'pass';
-
-    public const PAYMENT_FREE = 'free';
-
-    public const PAYMENT_CASH = 'cash';
-
-    public const PAYMENT_PENDING = 'pending';
-
     public const STATUS_LABELS = [
         self::STATUS_BOOKED => 'Reservada',
         self::STATUS_WAITLIST => 'Llista d\'espera',
